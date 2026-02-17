@@ -47,4 +47,4 @@
 2. [done] Add technical OOM pattern-rendering analysis section to `README.md`.
 3. [done] Add minimal GitHub Pages workflow and root entrypoint.
 4. [done] Verify local serving still works for root and support page.
-5. [in_progress] Commit changes, create public GitHub repo, and push (no extra features).
+5. [done] Commit changes, create public GitHub repo, and push (no extra features).
