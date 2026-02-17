@@ -14,4 +14,4 @@
 3. [done] Implement minimal single-map `support-repro.html` with 3 modes.
 4. [done] Add concise `README.md` with run and mode instructions.
 5. [done] Verify locally that all modes load and switch correctly.
-6. [in_progress] Commit locally and stop before push.
+6. [done] Commit locally and stop before push.
