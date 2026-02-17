@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>swisstopo JSAPI scree repro</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/5.0/esri/themes/light/main.css" />
+    <style>
+      html,
+      body,
+      #viewDiv {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .panel {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        z-index: 10;
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 10px;
+        font: 12px/1.3 "Segoe UI", sans-serif;
+      }
+
+      .panel label {
+        font-weight: 600;
+        margin-right: 6px;
+      }
+
+      .panel select {
+        font: inherit;
+      }
+
+      .status {
+        margin-top: 8px;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="viewDiv"></div>
+    <div class="panel">
+      <label for="mode">Mode</label>
+      <select id="mode">
+        <option value="baseline" selected>v6 baseline</option>
+        <option value="split4">v6 + scree split-4</option>
+        <option value="oom">v6 + scree OOM</option>
+      </select>
+      <div class="status" id="status">loading...</div>
+    </div>
+
+    <script type="module">
+      const JSAPI = "https://js.arcgis.com/5.0";
+      const V6_STYLE_PATH = "./styles/v6.json";
+      const DEFAULT_CENTER = [8.595, 46.636];
+      const DEFAULT_ZOOM = 12.7;
+
+      const screeOpacity = [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        11,
+        0,
+        12,
+        0.2,
+        14,
+        0.25,
+      ];
+
+      const screePatternByWeight = {
+        15: "scree_small_1",
+        10: "scree_small_2",
+        5: "scree_small_3",
+        1: "scree_small_4",
+      };
+
+      const screePatternExpr = [
+        "match",
+        ["get", "weight"],
+        15,
+        "scree_small_1",
+        10,
+        "scree_small_2",
+        5,
+        "scree_small_3",
+        1,
+        "scree_small_4",
+        "",
+      ];
+
+      const modeSelect = document.getElementById("mode");
+      const statusEl = document.getElementById("status");
+
+      function clone(value) {
+        if (typeof structuredClone === "function") {
+          return structuredClone(value);
+        }
+        return JSON.parse(JSON.stringify(value));
+      }
+
+      function setStatus(text) {
+        statusEl.textContent = text;
+      }
+
+      function buildSplitLayers() {
+        return Object.entries(screePatternByWeight)
+          .map(([weight, pattern]) => ({ weight: Number(weight), pattern }))
+          .sort((a, b) => b.weight - a.weight)
+          .map(({ weight, pattern }) => ({
+            id: `scree_z11_split_${weight}`,
+            type: "fill",
+            source: "relief_v1.0.0",
+            "source-layer": "scree",
+            minzoom: 11,
+            maxzoom: 13,
+            layout: { visibility: "visible" },
+            filter: ["==", "weight", weight],
+            paint: {
+              "fill-opacity": screeOpacity,
+              "fill-pattern": pattern,
+            },
+          }));
+      }
+
+      function buildOomLayer() {
+        return {
+          id: "scree_z11_oom",
+          type: "fill",
+          source: "relief_v1.0.0",
+          "source-layer": "scree",
+          minzoom: 11,
+          maxzoom: 13,
+          layout: { visibility: "visible" },
+          paint: {
+            "fill-opacity": screeOpacity,
+            "fill-pattern": screePatternExpr,
+          },
+        };
+      }
+
+      function findInsertIndex(layers) {
+        const idx = layers.findIndex((layer) => layer.id === "contour_line");
+        return idx >= 0 ? idx : layers.length;
+      }
+
+      function buildStyleForMode(baseStyle, mode) {
+        const style = clone(baseStyle);
+        const insertAt = findInsertIndex(style.layers || []);
+
+        if (mode === "split4") {
+          style.layers.splice(insertAt, 0, ...buildSplitLayers());
+        } else if (mode === "oom") {
+          style.layers.splice(insertAt, 0, buildOomLayer());
+        }
+
+        style.name = `v6-${mode}`;
+        return style;
+      }
+
+      try {
+        const [
+          { default: esriConfig },
+          { default: ArcGISMap },
+          { default: MapView },
+          { default: VectorTileLayer },
+        ] = await Promise.all([
+          import(`${JSAPI}/@arcgis/core/config.js`),
+          import(`${JSAPI}/@arcgis/core/Map.js`),
+          import(`${JSAPI}/@arcgis/core/views/MapView.js`),
+          import(`${JSAPI}/@arcgis/core/layers/VectorTileLayer.js`),
+        ]);
+
+        esriConfig.assetsPath = `${JSAPI}/@arcgis/core/assets`;
+
+        const response = await fetch(V6_STYLE_PATH, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`Cannot load ${V6_STYLE_PATH} (${response.status})`);
+        }
+        const baseStyle = await response.json();
+
+        const map = new ArcGISMap({ basemap: null });
+        new MapView({
+          container: "viewDiv",
+          map,
+          center: { longitude: DEFAULT_CENTER[0], latitude: DEFAULT_CENTER[1] },
+          zoom: DEFAULT_ZOOM,
+        });
+
+        let activeLayer = null;
+
+        async function loadMode(mode) {
+          setStatus(`mode=${mode} loading`);
+          const style = buildStyleForMode(baseStyle, mode);
+          const layer = new VectorTileLayer({ style });
+
+          if (activeLayer) {
+            map.remove(activeLayer);
+            activeLayer.destroy();
+            activeLayer = null;
+          }
+
+          map.add(layer);
+          activeLayer = layer;
+          await layer.load();
+          setStatus(`mode=${mode} loaded`);
+        }
+
+        modeSelect.addEventListener("change", () => {
+          loadMode(modeSelect.value).catch((error) => {
+            setStatus(`error: ${error?.message || String(error)}`);
+            console.error(error);
+          });
+        });
+
+        await loadMode(modeSelect.value);
+      } catch (error) {
+        setStatus(`error: ${error?.message || String(error)}`);
+        console.error(error);
+      }
+    </script>
+  </body>
+</html>
