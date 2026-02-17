@@ -46,120 +46,21 @@
     <div class="panel">
       <label for="mode">Mode</label>
       <select id="mode">
-        <option value="baseline" selected>v6 baseline</option>
-        <option value="split4">v6 + scree split-4</option>
-        <option value="oom">v6 + scree OOM</option>
+        <option value="upstream-noscree" selected>1) upstream ArcGIS (no scree)</option>
+        <option value="v5-adapted">2) adapted v5 style</option>
+        <option value="v6-scree">3) adapted v6 + scree</option>
+        <option value="oom">4) OOM version</option>
       </select>
       <div class="status" id="status">loading...</div>
     </div>
 
     <script type="module">
       const JSAPI = "https://js.arcgis.com/5.0";
+      const UPSTREAM_STYLE_PATH = "./styles/upstream.json";
+      const V5_STYLE_PATH = "./styles/v5.json";
       const V6_STYLE_PATH = "./styles/v6.json";
       const DEFAULT_CENTER = [8.595, 46.636];
       const DEFAULT_ZOOM = 13.4;
-
-      const SCREE_LAYER_TEMPLATES = [
-        {
-          id: "scree_z17",
-          type: "fill",
-          source: "relief_v1.0.0",
-          "source-layer": "scree",
-          minzoom: 17,
-          layout: { visibility: "visible" },
-          paint: {
-            "fill-opacity": ["interpolate", ["linear"], ["zoom"], 9, 0, 11, 0.2, 14, 0.25],
-            "fill-pattern": [
-              "match",
-              ["get", "weight"],
-              15,
-              "scree_very_large_1",
-              10,
-              "scree_very_large_2",
-              5,
-              "scree_very_large_3",
-              1,
-              "scree_very_large_4",
-              "",
-            ],
-          },
-        },
-        {
-          id: "scree_z15",
-          type: "fill",
-          source: "relief_v1.0.0",
-          "source-layer": "scree",
-          minzoom: 15,
-          maxzoom: 17,
-          layout: { visibility: "visible" },
-          paint: {
-            "fill-opacity": ["interpolate", ["linear"], ["zoom"], 9, 0, 11, 0.2, 14, 0.25],
-            "fill-pattern": [
-              "match",
-              ["get", "weight"],
-              15,
-              "scree_large_1",
-              10,
-              "scree_large_2",
-              5,
-              "scree_large_3",
-              1,
-              "scree_large_4",
-              "",
-            ],
-          },
-        },
-        {
-          id: "scree_z13",
-          type: "fill",
-          source: "relief_v1.0.0",
-          "source-layer": "scree",
-          minzoom: 13,
-          maxzoom: 15,
-          layout: { visibility: "visible" },
-          paint: {
-            "fill-opacity": ["interpolate", ["linear"], ["zoom"], 11, 0, 12, 0.2, 14, 0.25],
-            "fill-pattern": [
-              "match",
-              ["get", "weight"],
-              15,
-              "scree_medium_1",
-              10,
-              "scree_medium_2",
-              5,
-              "scree_medium_3",
-              1,
-              "scree_medium_4",
-              "",
-            ],
-          },
-        },
-        {
-          id: "scree_z11",
-          type: "fill",
-          source: "relief_v1.0.0",
-          "source-layer": "scree",
-          minzoom: 11,
-          maxzoom: 13,
-          layout: { visibility: "visible" },
-          paint: {
-            "fill-opacity": ["interpolate", ["linear"], ["zoom"], 11, 0, 12, 0.2, 14, 0.25],
-            "fill-pattern": [
-              "match",
-              ["get", "weight"],
-              15,
-              "scree_small_1",
-              10,
-              "scree_small_2",
-              5,
-              "scree_small_3",
-              1,
-              "scree_small_4",
-              "",
-            ],
-          },
-        },
-      ];
 
       const modeSelect = document.getElementById("mode");
       const statusEl = document.getElementById("status");
@@ -175,26 +76,12 @@
         statusEl.textContent = text;
       }
 
-      function andFilter(a, b) {
-        if (!a) return b;
-        return ["all", a, b];
-      }
-
-      function parseWeightPatternMap(expr) {
-        if (!Array.isArray(expr) || expr[0] !== "match") {
-          return [];
+      async function fetchJson(path) {
+        const response = await fetch(path, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`Cannot load ${path} (${response.status})`);
         }
-
-        const out = [];
-        for (let i = 2; i + 1 < expr.length; i += 2) {
-          const weight = expr[i];
-          const pattern = expr[i + 1];
-          if (typeof weight === "number" && typeof pattern === "string" && pattern) {
-            out.push({ weight, pattern });
-          }
-        }
-
-        return out.sort((a, b) => b.weight - a.weight);
+        return response.json();
       }
 
       function isScreeLayer(layer) {
@@ -207,12 +94,42 @@
       }
 
       function removeScreeLayers(layers) {
-        return layers.filter((layer) => !isScreeLayer(layer));
+        return (layers || []).filter((layer) => !isScreeLayer(layer));
       }
 
-      function buildSplitLayers() {
+      function findInsertIndex(layers) {
+        const idx = (layers || []).findIndex((layer) => layer.id === "contour_line");
+        return idx >= 0 ? idx : (layers || []).length;
+      }
+
+      function andFilter(a, b) {
+        if (!a) return b;
+        return ["all", a, b];
+      }
+
+      function parseWeightPatternMap(expr) {
+        if (!Array.isArray(expr) || expr[0] !== "match") {
+          return [];
+        }
+
+        const pairs = [];
+        for (let i = 2; i + 1 < expr.length; i += 2) {
+          const weight = expr[i];
+          const pattern = expr[i + 1];
+          if (typeof weight === "number" && typeof pattern === "string" && pattern) {
+            pairs.push({ weight, pattern });
+          }
+        }
+        return pairs.sort((a, b) => b.weight - a.weight);
+      }
+
+      function extractScreeTemplates(upstreamStyle) {
+        return (upstreamStyle.layers || []).filter(isScreeLayer).map((layer) => clone(layer));
+      }
+
+      function buildSplitLayersFromTemplates(screeTemplates) {
         const out = [];
-        for (const template of SCREE_LAYER_TEMPLATES) {
+        for (const template of screeTemplates) {
           const pairs = parseWeightPatternMap(template?.paint?.["fill-pattern"]);
           for (const { weight, pattern } of pairs) {
             const next = clone(template);
@@ -225,36 +142,35 @@
         return out;
       }
 
-      function buildOomLayers() {
-        return SCREE_LAYER_TEMPLATES.map((layer) => clone(layer));
-      }
-
-      function findInsertIndex(layers) {
-        const idx = layers.findIndex((layer) => layer.id === "contour_line");
-        return idx >= 0 ? idx : layers.length;
-      }
-
-      function buildStyleForMode(baseStyle, mode) {
-        const style = clone(baseStyle);
-        let injectedLayers = [];
-
-        if (mode === "baseline") {
-          style.name = `v6-${mode}`;
+      function buildModePayload(mode, styles) {
+        if (mode === "upstream-noscree") {
+          const style = clone(styles.upstream);
+          style.layers = removeScreeLayers(style.layers);
+          style.name = "upstream-noscree";
           return { style, injectedIds: [] };
         }
 
-        const stripped = removeScreeLayers(style.layers || []);
+        if (mode === "v5-adapted") {
+          const style = clone(styles.v5);
+          style.name = "v5-adapted";
+          return { style, injectedIds: [] };
+        }
+
+        const style = clone(styles.v6);
+        const stripped = removeScreeLayers(style.layers);
         const insertAt = findInsertIndex(stripped);
 
-        if (mode === "split4") {
-          injectedLayers = buildSplitLayers();
+        let injectedLayers = [];
+        if (mode === "v6-scree") {
+          injectedLayers = buildSplitLayersFromTemplates(styles.screeTemplates);
+          style.name = "v6-scree";
         } else if (mode === "oom") {
-          injectedLayers = buildOomLayers();
+          injectedLayers = styles.screeTemplates.map((layer) => clone(layer));
+          style.name = "oom";
         }
 
         stripped.splice(insertAt, 0, ...injectedLayers);
         style.layers = stripped;
-        style.name = `v6-${mode}`;
         return { style, injectedIds: injectedLayers.map((layer) => layer.id) };
       }
 
@@ -273,11 +189,18 @@
 
         esriConfig.assetsPath = `${JSAPI}/@arcgis/core/assets`;
 
-        const response = await fetch(V6_STYLE_PATH, { cache: "no-store" });
-        if (!response.ok) {
-          throw new Error(`Cannot load ${V6_STYLE_PATH} (${response.status})`);
-        }
-        const baseStyle = await response.json();
+        const [upstreamStyle, v5Style, v6Style] = await Promise.all([
+          fetchJson(UPSTREAM_STYLE_PATH),
+          fetchJson(V5_STYLE_PATH),
+          fetchJson(V6_STYLE_PATH),
+        ]);
+
+        const styles = {
+          upstream: upstreamStyle,
+          v5: v5Style,
+          v6: v6Style,
+          screeTemplates: extractScreeTemplates(upstreamStyle),
+        };
 
         const map = new ArcGISMap({ basemap: null });
         new MapView({
@@ -291,7 +214,7 @@
 
         async function loadMode(mode) {
           setStatus(`mode=${mode} loading`);
-          const { style, injectedIds } = buildStyleForMode(baseStyle, mode);
+          const { style, injectedIds } = buildModePayload(mode, styles);
           const layer = new VectorTileLayer({ style });
 
           if (activeLayer) {
@@ -303,6 +226,7 @@
           map.add(layer);
           activeLayer = layer;
           await layer.load();
+
           const ids = injectedIds.length ? injectedIds.join(",") : "none";
           setStatus(`mode=${mode} loaded screeLayers=${injectedIds.length} ids=${ids}`);
         }

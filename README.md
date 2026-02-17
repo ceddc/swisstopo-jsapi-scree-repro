@@ -5,13 +5,16 @@ Minimal ArcGIS JS API repro project for scree `fill-pattern` behavior.
 ## Files
 
 - `support-repro.html`: single-map repro page with mode switch.
-- `styles/v6.json`: latest v5 adaptation style copied as v6 baseline.
+- `styles/upstream.json`: upstream swisstopo style.
+- `styles/v5.json`: adapted v5 style baseline.
+- `styles/v6.json`: adapted v6 style baseline.
 
 ## Modes
 
-- `v6 baseline` (default): load `v6.json` as-is.
-- `v6 + scree split-4`: inject all upstream scree zoom layers, each split into 4 constant-pattern layers (`weight` 15/10/5/1).
-- `v6 + scree OOM`: inject all upstream scree layers (`scree_z11`, `scree_z13`, `scree_z15`, `scree_z17`) with original `match(get("weight"), ...)` patterns.
+- `1) upstream ArcGIS (no scree)`: load upstream style with all `scree_z*` layers removed.
+- `2) adapted v5 style`: load adapted v5 style as-is.
+- `3) adapted v6 + scree`: load v6 style and inject split scree layers (4 weights per scree zoom layer).
+- `4) OOM version`: load v6 style and inject upstream scree expression layers (`scree_z11`, `scree_z13`, `scree_z15`, `scree_z17`).
 
 ## Technical analysis (for support)
 

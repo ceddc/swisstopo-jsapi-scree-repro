@@ -62,3 +62,19 @@
 
 1. [done] Add `enablement: true` to `actions/configure-pages` step.
 2. [done] Push fix and verify next Pages run passes.
+
+## 2026-02-17 - mode list rework for support
+
+### Analysis
+
+- Goal: update the repro mode list to exactly four support modes: upstream-no-scree, adapted v5, adapted v6 with scree, and oom.
+- Scope: update `support-repro.html`, add style sources needed by those modes (`styles/v5.json`, `styles/upstream.json`), and refresh README mode documentation.
+- Risks: mode builders could accidentally reuse old scree injection behavior and make two modes visually identical.
+- Evidence: user asked for a specific 4-item mode list and raised that baseline vs split looked identical.
+
+### Todo Checklist
+
+1. [done] Add required style files for new modes.
+2. [done] Rework mode selector and style builders in `support-repro.html`.
+3. [done] Update `README.md` to describe the new 4-mode list.
+4. [done] Smoke-test all 4 modes and confirm scree layer counts.
