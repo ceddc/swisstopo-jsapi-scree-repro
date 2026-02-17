@@ -48,3 +48,17 @@
 3. [done] Add minimal GitHub Pages workflow and root entrypoint.
 4. [done] Verify local serving still works for root and support page.
 5. [done] Commit changes, create public GitHub repo, and push (no extra features).
+
+## 2026-02-17 - GitHub Pages enablement fix
+
+### Analysis
+
+- Goal: fix failed first Pages deployment by enabling Pages site initialization in workflow.
+- Scope: update `.github/workflows/pages.yml` only.
+- Risks: none beyond rerun latency.
+- Evidence: workflow failed at `actions/configure-pages` with "Get Pages site failed ... repository has Pages enabled".
+
+### Todo Checklist
+
+1. [done] Add `enablement: true` to `actions/configure-pages` step.
+2. [in_progress] Push fix and verify next Pages run passes.
