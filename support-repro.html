@@ -39,6 +39,19 @@
         margin-top: 8px;
         font-family: ui-monospace, Menlo, Consolas, monospace;
       }
+
+      .help {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid #e2e8f0;
+        font-size: 11px;
+        line-height: 1.35;
+        color: #334155;
+      }
+
+      .help div + div {
+        margin-top: 4px;
+      }
     </style>
   </head>
   <body>
@@ -46,11 +59,16 @@
     <div class="panel">
       <label for="mode">Mode</label>
       <select id="mode">
-        <option value="upstream-noscree" selected>1) upstream ArcGIS (no scree)</option>
-        <option value="v5-adapted">2) adapted v5 style</option>
-        <option value="v6-scree">3) adapted v6 + scree</option>
-        <option value="oom">4) OOM version</option>
+        <option value="upstream-noscree" selected>1) Default swisstopo upstream (Mapbox GL style)</option>
+        <option value="v5-adapted">2) Adapted swisstopo style (advanced expressions refactored)</option>
+        <option value="v6-scree">3) Adapted style + scree relief points</option>
+        <option value="oom">4) OOM crash version</option>
       </select>
+      <div class="help" id="modeHelp">
+        <div><strong>1 + 2:</strong> problematic scree fill is not shown.</div>
+        <div><strong>3:</strong> adapted scree rendering is enabled (split constant-pattern layers).</div>
+        <div><strong>4:</strong> no scree adaptation from initial style; keeps original expression path and can trigger browser OOM.</div>
+      </div>
       <div class="status" id="status">loading...</div>
     </div>
 

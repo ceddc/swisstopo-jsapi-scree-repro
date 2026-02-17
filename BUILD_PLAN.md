@@ -78,3 +78,35 @@
 2. [done] Rework mode selector and style builders in `support-repro.html`.
 3. [done] Update `README.md` to describe the new 4-mode list.
 4. [done] Smoke-test all 4 modes and confirm scree layer counts.
+
+## 2026-02-17 - mode wording + scree JSON examples
+
+### Analysis
+
+- Goal: update mode labels/descriptions with support-friendly wording and add before/after scree render JSON snippets in README.
+- Scope: text-only changes in `support-repro.html` and `README.md`; no behavior changes.
+- Risks: wording drift between UI and README.
+- Evidence: user asked for text updates, requested JSON render examples, and explicitly asked to avoid mentioning poor ArcGIS rendering.
+
+### Todo Checklist
+
+1. [done] Persist this plan section before edits.
+2. [done] Update mode labels in `support-repro.html` (text only).
+3. [done] Update README mode wording and add scree before/after JSON snippets.
+4. [done] Verify labels and README content consistency.
+
+## 2026-02-17 - support guidance wording update
+
+### Analysis
+
+- Goal: add clearer support-oriented wording that explains what each of the 4 modes demonstrates, including when the problematic scree fill is hidden vs active.
+- Scope: update help text in `support-repro.html` and add matching documentation notes in `README.md`.
+- Risks: mismatch between UI help text and README wording.
+- Evidence: user asked for better-worded explanation in documentation/help panel and specified the expected 1-4 interpretation.
+
+### Todo Checklist
+
+1. [done] Persist this plan section before edits.
+2. [done] Add concise in-page help panel text for modes 1-4.
+3. [done] Add matching mode interpretation section in README.
+4. [done] Verify help text appears and wording stays consistent.

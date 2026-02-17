@@ -11,10 +11,76 @@ Minimal ArcGIS JS API repro project for scree `fill-pattern` behavior.
 
 ## Modes
 
-- `1) upstream ArcGIS (no scree)`: load upstream style with all `scree_z*` layers removed.
-- `2) adapted v5 style`: load adapted v5 style as-is.
-- `3) adapted v6 + scree`: load v6 style and inject split scree layers (4 weights per scree zoom layer).
-- `4) OOM version`: load v6 style and inject upstream scree expression layers (`scree_z11`, `scree_z13`, `scree_z15`, `scree_z17`).
+- `1) Default swisstopo upstream (Mapbox GL style)`: load upstream style with all `scree_z*` layers removed.
+- `2) Adapted swisstopo style (advanced expressions refactored)`: load adapted v5 style as-is.
+- `3) Adapted style + scree relief points`: load adapted v6 style and inject split scree layers (4 weights per scree zoom layer).
+- `4) OOM crash version`: load adapted v6 style and inject upstream scree expression layers (`scree_z11`, `scree_z13`, `scree_z15`, `scree_z17`).
+
+### Mode interpretation (support)
+
+- `1` and `2`: the problematic scree fill is not visible.
+- `3`: scree is enabled through adapted rendering (split constant-pattern layers).
+- `4`: no scree adaptation from the initial style; original scree expression path is active and may lead to browser OOM.
+
+## Scree render JSON (before/after fix)
+
+Before (OOM expression path):
+
+```json
+{
+  "id": "scree_z11",
+  "type": "fill",
+  "source": "relief_v1.0.0",
+  "source-layer": "scree",
+  "paint": {
+    "fill-pattern": [
+      "match",
+      ["get", "weight"],
+      15,
+      "scree_small_1",
+      10,
+      "scree_small_2",
+      5,
+      "scree_small_3",
+      1,
+      "scree_small_4",
+      ""
+    ]
+  }
+}
+```
+
+After (split fix path):
+
+```json
+[
+  {
+    "id": "scree_z11_split_w15",
+    "filter": ["==", "weight", 15],
+    "paint": { "fill-pattern": "scree_small_1" }
+  },
+  {
+    "id": "scree_z11_split_w10",
+    "filter": ["==", "weight", 10],
+    "paint": { "fill-pattern": "scree_small_2" }
+  },
+  {
+    "id": "scree_z11_split_w5",
+    "filter": ["==", "weight", 5],
+    "paint": { "fill-pattern": "scree_small_3" }
+  },
+  {
+    "id": "scree_z11_split_w1",
+    "filter": ["==", "weight", 1],
+    "paint": { "fill-pattern": "scree_small_4" }
+  }
+]
+```
+
+Runtime counts in this repro:
+
+- OOM mode injects 4 scree layers (`scree_z11`, `scree_z13`, `scree_z15`, `scree_z17`).
+- Split mode injects 16 scree layers total (4 zoom layers x 4 weights).
 
 ## Technical analysis (for support)
 
