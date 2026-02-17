@@ -61,4 +61,4 @@
 ### Todo Checklist
 
 1. [done] Add `enablement: true` to `actions/configure-pages` step.
-2. [in_progress] Push fix and verify next Pages run passes.
+2. [done] Push fix and verify next Pages run passes.
